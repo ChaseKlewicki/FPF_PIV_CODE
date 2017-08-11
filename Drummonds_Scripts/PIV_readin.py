@@ -1,3 +1,7 @@
+#create movie
+#from __future__ import print_function
+#import os
+
 import pandas as pd
 import numpy as np
 import PIV
@@ -7,6 +11,7 @@ import h5py
 from scipy.signal import medfilt
 import matplotlib.pyplot as plt
 import hotwire as hw
+
 
 ################################################################
 #   PURPOSE
@@ -37,11 +42,12 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
         print()
 
 def piv_readin_mod(base_name_input, data_sets, sizex, sizey):
+	#setup range of datasets
+    x_range = np.arange(1, data_sets+1)
     #initalize data
-    temp_u = np.ndarray([data_sets-1, sizex, sizey])
-    temp_v = np.ndarray([data_sets-1, sizex, sizey])
     count = 0
-    x_range = np.arange(1, data_sets)
+    temp_u = np.ndarray([len(x_range), sizex, sizey])
+    temp_v = np.ndarray([len(x_range), sizex, sizey])
     #setup progressbar
     printProgressBar(0, len(x_range), prefix = 'Reading In:', suffix = 'Complete', length = 50)
     for i in x_range:
@@ -51,11 +57,6 @@ def piv_readin_mod(base_name_input, data_sets, sizex, sizey):
         temp = pd.read_csv(loc, sep='\t', skiprows=1, header=None)
         #rename columns to designated davis output
         temp.columns = ['Xlocation (mm)', 'Ylocation (mm)', 'U (m/sec)', 'V (m/sec)']
-        #for j in range(0, len(temp['U (m/sec)'])):
-            #temp['U (m/sec)'][j] = float(temp['U (m/sec)'][j].replace(',','.'))
-            #temp['V (m/sec)'][j] = float(temp['V (m/sec)'][j].replace(',','.'))
-            #temp['Xlocation (mm)'][j] = float(temp['Xlocation (mm)'][j].replace(',','.'))
-            #temp['Ylocation (mm)'][j] = float(temp['Ylocation (mm)'][j].replace(',','.'))
         #reorganize into seperate arrays
         temp_x = np.array(np.reshape(temp['Xlocation (mm)'], (sizex, sizey)))
         temp_y = np.array(np.reshape(temp['Ylocation (mm)'], (sizex, sizey)))
@@ -67,19 +68,50 @@ def piv_readin_mod(base_name_input, data_sets, sizex, sizey):
     y_axis = temp_y[:,0]
     print('Done Read in!')
     #sys.stdout.write("\n")
-    return(x_axis, y_axis, temp_u, temp_v)
+    return(x_axis, y_axis, temp_u, temp_v, x_range)
 
-def filt_images(tempU):
-    Umean = np.mean(np.mean(tempU))
-    STDmean = np.mean(np.var(tempU, axis=0))**(1/2)
-    len1 = len(tempU)
-    for j in range(0, len1):
-        temp_mean = np.mean(np.mean(tempU[j]))
-        if temp_mean > Umean + 2*STDmean:
-            tempU[j] = tempU[j]*np.nan
-        if temp_mean < Umean - 2*STDmean:
-            tempU[j] = tempU[j]*np.nan
-    return(tempU)
+
+#This function is used to set bad and non-physical images to a nan value
+def filt_images(u_vel, v_vel, Uinfinity, sizey):
+	#count number of bad images
+	count1 = 0
+	#initalize the mean values which images will be filtered on
+	Umean_top = np.zeros(len(u_vel))
+	#compute means for top of images after above zero filter has been applied
+	for j in range(0, len(u_vel[0,:])):
+		Umean_top[j] = np.mean(np.mean(u_vel[j, int(2*(sizey/3)):-1]))
+	####remove all images which have ~zero mean such that when STD filter is appled
+	# the average is not skewed to towards zero
+	for j in range(0, len(v_vel[0,:])):
+		if Umean_top[j] < Uinfinity/10:
+			u_vel[0, j] = np.nan
+			v_vel[0, j] = np.nan
+			count1+=1
+	#compute new means for top of images after above zero filter has been applied
+	for j in range(0, len(u_vel[0,:])):
+		Umean_top[j] = np.mean(np.mean(u_vel[j, int(2*(sizey/3)):-1]))
+	####Apply STD filter 
+	#number of times to iterate through STD filter   
+	num_loops = 4
+	#width of filter in STD
+	filter_width = 1
+	for k in range(0, num_loops):
+		#compute mean of top 1/3 of image for STD filtering
+		for j in range(0, len(u_vel[0,:])):
+			Umean_top[j] = np.mean(np.mean(u_vel[j, int(2*(sizey/3)):-1]))
+		#STD filter  
+		for j in range(0, len(u_vel[0,:])):
+			#remove images with average value less than avg - x*STD
+			if Umean_top[j] < np.nanmean(Umean_top) - filter_width * np.sqrt(np.nanvar(Umean_top)):
+				u_vel[0, j] = np.nan
+				v_vel[0, j] = np.nan
+				count1+=1
+			#remove images with average value greater than avg - x*STD
+			if Umean_top[j] > np.nanmean(Umean_top) + filter_width * np.sqrt(np.nanvar(Umean_top)):
+				u_vel[0, j] = np.nan
+				v_vel[0, j] = np.nan
+				count1+=1
+	return(u_vel, v_vel, count1)
 
 
 ## to work on ##
@@ -88,86 +120,74 @@ def filt_images(tempU):
 # determine better way to store PIV datasets
 
 ## INITIAL CODE USED FOR READING IN
-
+#run air_prop.py
 #Parameter set
-date = '061617'
+date = '072117'
 filter_width = 21
-num_images = 1000
+num_images = 10911
 sizex = 129
 sizey = 129
-walloffset = 2.22
-side_error = 2
+walloffset = 7.25 #mm
+side_error = 5
+u_infinity = 4.5
 
 #list name of data set folders
 base_name = dict()
 #List the base name for each test to be read in and analyzed, names taken directly from folder
-base_name[0] = 'D:/test_061617/Cam_Date=170616_Time=144917_TR_SeqPIV_MP(2x16x16_50ov_ImgCorr)=unknown'
-base_name[1] = 'D:/test_061617/Cam_Date=170616_Time=145207_TR_SeqPIV_MP(2x16x16_50ov_ImgCorr)=unknown'
-base_name[2] = 'D:/test_061617/Cam_Date=170616_Time=145516_TR_SeqPIV_MP(2x16x16_50ov_ImgCorr)=unknown'
-base_name[3] = 'D:/test_061617/Cam_Date=170616_Time=145802_TR_SeqPIV_MP(2x16x16_50ov_ImgCorr)=unknown'
-base_name[4] = 'D:/test_061617/Cam_Date=170616_Time=150030_TR_SeqPIV_MP(2x16x16_50ov_ImgCorr)=unknown'
-base_name[5] = 'D:/test_061617/Cam_Date=170616_Time=150311_TR_SeqPIV_MP(2x16x16_50ov_ImgCorr)=unknown'
-base_name[6] = 'D:/test_061617/Cam_Date=170616_Time=150551_TR_SeqPIV_MP(2x16x16_50ov_ImgCorr)=unknown'
-base_name[7] = 'D:/test_061617/Cam_Date=170616_Time=150828_TR_SeqPIV_MP(2x16x16_50ov_ImgCorr)=unknown'
-base_name[8] = 'D:/test_061617/Cam_Date=170616_Time=151133_TR_SeqPIV_MP(2x16x16_50ov_ImgCorr)=unknown'
-base_name[9] = 'D:/test_061617/Cam_Date=170616_Time=151411_TR_SeqPIV_MP(2x16x16_50ov_ImgCorr)=unknown'
+base_name[0] = '../../../../../../../Local_files/FPF/test_' + date + '/data/Cam_Date=170721_Time=160651_TR_SeqPIV_MP(2x16x16_50ov_ImgCorr)=unknown_02'
 
 #Initalize variables
 num_tests = len(base_name)
-U = np.ndarray([num_tests, num_images-1, sizey, sizex])
-V = np.ndarray([num_tests, num_images-1, sizey, sizex])
-u_filt = np.ndarray([num_tests, num_images-1, sizey, sizex])
-v_filt = np.ndarray([num_tests, num_images-1, sizey, sizex])
+u = np.ndarray([num_tests, num_images, sizey, sizex])
+v = np.ndarray([num_tests, num_images, sizey, sizex])
+v_filt = np.ndarray([num_tests, num_images, sizey, sizex])
+u_filt = np.ndarray([num_tests, num_images, sizey, sizex])
 umean = np.ndarray([num_tests, sizey, sizex])
-vmean = np.ndarray([num_tests, sizey, sizex])
-mask = np.zeros([num_tests, 3])
+#vmean1 = np.ndarray([num_tests, sizey, sizex])
+#mask = np.zeros([num_tests, 3])
 umean_profile = dict()
 vmean_profile = dict()
 urms_profile = dict()
 vrms_profile = dict()
 uvprime_profile = dict()
 for j in base_name:
-    #Read in
-    [x, y, U[j], V[j]] = PIV.piv_readin_mod(base_name[j], num_images, sizey, sizex)
-    #filter out images that contain spurious vectors
-    U[j] = filt_images(U[j])
-    V[j] = filt_images(V[j])
-    #Filter data sets (median filter along axis=0 (through images))
-    #u_filt[j] = medfilt(U[j, :], kernel_size=[filter_width, 1, 1])
-    #v_filt[j] = medfilt(V[j, :], kernel_size=[filter_width, 1, 1])
-    u_filt[j] = U[j, :]
-    v_filt[j] = V[j, :]
-    #Obtain mean vecotr field
-    umean[j] = np.nanmean(u_filt[j], axis=0)
-    vmean[j] = np.nanmean(v_filt[j], axis=0)
-    #print('Done Reading')
-    #bar.finish()
-    #determine mask position
+	#Read in
+	[x, y, u[j], v[j], x_range] = piv_readin_mod(base_name[j], num_images, sizey, sizex)
+	#Filter Images
+	[u_filt[j], v_filt[j], bad_im_count] = filt_images(u[j], v[j], u_infinity, sizey)
+	#Obtain mean vector field
+	umean[j] = np.nanmean(u_filt[j, :], axis=0)
+	#vmean1[j] = np.nanmean(v_filt[j, :], axis=0)
+
+#determine mask position
 tempmask = PIV.mask_loc(umean[j])
 mask = list(tempmask)
-## Resize vecotr field to crop out masked areas and
+#use this to find the mean vel in each image, and look for bad images
+
+
+## Resize vecotor field to crop out masked areas and
 # create new vectors which take out the masked areas and any side errors
 sizex_mask = mask[3] - mask[2] - side_error*2
 sizey_mask = mask[1] - mask[0]
-Umask = np.ndarray([num_tests, num_images-1, sizey_mask, sizex_mask])
-Vmask = np.ndarray([num_tests, num_images-1, sizey_mask, sizex_mask])
+Umask = np.ndarray([num_tests, num_images, sizey_mask, sizex_mask])
+Vmask = np.ndarray([num_tests, num_images, sizey_mask, sizex_mask])
 umean = np.ndarray([num_tests, sizey_mask, sizex_mask])
 vmean = np.ndarray([num_tests, sizey_mask, sizex_mask])
 for j in base_name:
-    Umask[j] = -1*U[j][:, mask[0]:mask[1], int(mask[2]+side_error):int(mask[3]-side_error)]
-    Vmask[j] = V[j][:, mask[0]:mask[1], int(mask[2]+side_error):int(mask[3]-side_error)]
+    Umask[j] = u_filt[j][:, mask[0]:mask[1], int(mask[2]+side_error):int(mask[3]-side_error)]
+    Vmask[j] = v_filt[j][:, mask[0]:mask[1], int(mask[2]+side_error):int(mask[3]-side_error)]
     umean[j] = np.nanmean(Umask[j], axis=0)
     vmean[j] = np.nanmean(Vmask[j], axis=0)
 
 ## Determine RMS quantities ##
-uprime = np.ndarray([num_tests, num_images-1, sizey_mask, sizex_mask])
-vprime = np.ndarray([num_tests, num_images-1, sizey_mask, sizex_mask])
-uvprime  = np.ndarray([num_tests, num_images-1, sizey_mask, sizex_mask])
+uprime = np.ndarray([num_tests, num_images, sizey_mask, sizex_mask])
+vprime = np.ndarray([num_tests, num_images, sizey_mask, sizex_mask])
+uvprime  = np.ndarray([num_tests, num_images, sizey_mask, sizex_mask])
 uvprime_mean = np.ndarray([num_tests, sizey_mask, sizex_mask])
 urms = np.ndarray([num_tests, sizey_mask, sizex_mask])
 vrms = np.ndarray([num_tests, sizey_mask, sizex_mask])
 for j in range(0, num_tests):
-    for jj in range(0, 499):
+    for jj in range(0, num_images):
         uprime[j, jj] = ((Umask[j][jj]-umean[j]))
         vprime[j, jj] = ((Vmask[j][jj]-vmean[j]))
         uvprime[j, jj] = uprime[j, jj]*vprime[j, jj]
@@ -179,9 +199,9 @@ for j in range(0, num_tests):
 #convert to m and take off wall position as seen in images
 x = (x)/1000
 y = (y-walloffset)/1000
-xmask = x[ mask[2]:mask[3] ]
+xmask = x[ (mask[2]+side_error):(mask[3]-side_error) ]
 ymask = y[ mask[0]:mask[1] ]
-## Create Mean Profiles #######
+## Create Mean Profiles for each data set#######
 for j in range(0, num_tests):
     umean_profile[j] = np.mean(umean[j], axis=1)
     vmean_profile[j] = np.mean(vmean[j], axis=1)
@@ -212,7 +232,7 @@ uvprime_profile_avg = uvprime_profile_avg / num_tests
 
 ##calculate conf interval
 conf = dict()
-Neff = 10
+Neff = 75
 conf['u'] =  (np.nanmean(np.nanmean(np.nanvar(Umask, axis=1), axis=0), axis=1))**(1/2) * (1/Neff)**(1/2)
 conf['v'] =  (np.nanmean(np.nanmean(np.nanvar(Vmask, axis=1), axis=0), axis=1))**(1/2) * (1/Neff)**(1/2)
 conf['urms'] =  (np.nanmean(np.nanvar(urms, axis=0), axis=1))**(1/2) * (1/(2*Neff-1))**(1/2)
@@ -224,7 +244,9 @@ conf['uvprime'] = np.nanmean(sigma_u * sigma_v * (1+ (np.nanmean(uvprime_mean, a
 ###  WRITE OUT DATA
 ####################
 #open hdf5 file
-hdf = pd.HDFStore('D:/test_061617/PIV_' + date + '.h5')
+hdf = pd.HDFStore('data/PIV_' + date + '.h5')
+hdf.put('umean', pd.DataFrame(umean[0]))
+hdf.put('vmean', pd.DataFrame(vmean[0]))
 hdf.put('umean_profile_avg', pd.DataFrame(umean_profile_avg))
 hdf.put('vmean_profile_avg', pd.DataFrame(vmean_profile_avg))
 hdf.put('urms_profile_avg', pd.DataFrame(urms_profile_avg))
@@ -237,3 +259,23 @@ hdf.put('mask', pd.DataFrame(mask))
 hdf.close()
 
 print('Data Saved!')
+
+
+#files = []
+
+#fig, ax = plt.subplots(figsize=(5,5))
+#for i in range(0, num_images):
+#    plt.cla()
+#    plt.imshow(Umask[0, i])
+#	plt.colorbar()
+#    fname = '_tmp%03d.png'%i
+#    print('Saving frame', fname)
+#    plt.savefig(fname)
+#    files.append(fname)
+
+#print('Making movie animation.mpg - this make take a while')
+#os.system("mencoder 'mf://_tmp*.png' -mf type=png:fps=10 -ovc lavc -lavcopts vcodec=wmv2 -oac copy -o animation.mpg")
+#os.system("convert _tmp*.png animation.mng")
+
+# cleanup
+#for fname in files: os.remove(fname)
