@@ -81,21 +81,30 @@ def probe_height(L, H, N):
 #   UPDATES
 #Need to change such that it can caluculate Twall>Tair or for Twall<Tair
 
-def delta(data, x, U_inf, threshold):
+def delta(data, x, U_inf, threshold, profile):
     #create place holder
     temp_delta = 0
-    #set thresholding value ie .99, .95
-    thershold = threshold
     N = len(data)
     temp = data/U_inf
-    for j in range(1,N):
-        # #0 -> 1
-        if temp[j] >= thershold:
-            if temp[j-1] <= threshold:
-                #interpolate to find true value
-                temp_delta = (threshold-temp[j-1])/(temp[j]-temp[j-1])*(x[j]-x[j-1])+x[j-1]
-                break
-    delta_pos = j+1
+    ##0 -> 1
+    if profile == 0:
+        for j in range(1,N):
+            if temp[j] >= threshold:
+                if temp[j-1] <= threshold:
+                    #interpolate to find true value
+                    temp_delta = (threshold-temp[j-1])/(temp[j]-temp[j-1])*(x[j]-x[j-1])+x[j-1]
+                    break
+        delta_pos = j+1
+    ##1 -> 0
+    threshold = 1+(1-threshold)
+    if profile == 1:
+        for j in range(1,N):
+            if temp[j] <= threshold:
+                if temp[j-1] >= threshold:
+                    #interpolate to find true value
+                    temp_delta = (threshold-temp[j-1])/(temp[j]-temp[j-1])*(x[j]-x[j-1])+x[j-1]
+                    break
+        delta_pos = j+1
     return(temp_delta, delta_pos)
 
 #############################################################################
