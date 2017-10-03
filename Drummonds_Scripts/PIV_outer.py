@@ -15,78 +15,93 @@ import hotwire as hw
 #note- vel and axis are flipped to properlly calc delta
 
 
-def piv_outer(date, num_tests):
-	#read in variables
-	name = 'data/PIV_' + date + '.h5'
-	umean_fov = np.array(pd.read_hdf(name, 'umean'))
-	vmean_fov = np.array(pd.read_hdf(name, 'vmean'))
-	umean = np.array(pd.read_hdf(name, 'umean_profile_avg'))
-	vmean = np.array(pd.read_hdf(name, 'vmean_profile_avg'))
-	urms = np.array(pd.read_hdf(name, 'urms_profile_avg'))
-	vrms = np.array(pd.read_hdf(name, 'vrms_profile_avg'))
-	uvprime = np.array(pd.read_hdf(name, 'uvprime_profile_avg'))
-	x = np.array(pd.read_hdf(name, 'xaxis'))
-	y = np.array(pd.read_hdf(name, 'yaxis'))
-	num_tests = len(umean)
-
-	###1.  Outer Normalize #############
-	###################################
+def piv_outer(date, num_tests, legend1):
+	#initalize variables
+	umean_fov = dict()
+	vmean_fov = dict()
+	umean = dict()
+	vmean = dict()
+	urms = dict()
+	vrms = dict()
+	uvprime = dict()
+	x = dict()
+	y = dict()
+	for j in range(0, num_tests):
+		#read in variables
+		name = 'data/PIV_' + date + '_' +str(j) + '.h5'
+		umean_fov[j] = np.array(pd.read_hdf(name, 'umean'))
+		vmean_fov[j] = np.array(pd.read_hdf(name, 'vmean'))
+		umean[j] = np.array(pd.read_hdf(name, 'umean_profile_avg'))
+		vmean[j] = np.array(pd.read_hdf(name, 'vmean_profile_avg'))
+		urms[j] = np.array(pd.read_hdf(name, 'urms_profile_avg'))
+		vrms[j] = np.array(pd.read_hdf(name, 'vrms_profile_avg'))
+		uvprime[j] = np.array(pd.read_hdf(name, 'uvprime_profile_avg'))
+		x[j] = np.array(pd.read_hdf(name, 'xaxis'))
+		y[j] = np.array(pd.read_hdf(name, 'yaxis'))
 
 	###2.  Outer Normalize #############
 	###################################
 
 	###3.  PLOTS ######################
 	###################################
-
+	marker_u = ['-xr', '-or','-sr']
+	marker_v = ['-xb', '-ob','-sb']
 	#mean profiles
 	#U vs y
 	plt.figure()
-	plt.plot(umean, y, '-xr')
-	plt.xlabel('U (m/sec)', fontsize=14)
-	plt.ylabel('Wall Normal Position (m)', fontsize=14)
-	plt.legend([r'$Re_{\theta}=$30288, PIV Data'], loc=0)
+	for j in range(0, num_tests):
+		plt.plot(y[j], umean[j], marker_u[j])
+	plt.ylabel('U (m/sec)', fontsize=14)
+	plt.xlabel('Wall Normal Position (m)', fontsize=14)
+	plt.legend(legend1, loc=0)
 	plt.show()
 
 	#V vs y
 	plt.figure()
-	plt.plot(vmean, y, '-xb')
-	plt.xlabel('V (m/sec)', fontsize=14)
-	plt.ylabel('Wall Normal Position (m)', fontsize=14)
-	plt.legend([r'$Re_{\theta}=$30288, PIV Data'], loc=0)
+	for j in range(0, num_tests):
+		plt.plot(y[j], vmean[j], marker_v[j])
+	plt.ylabel('V (m/sec)', fontsize=14)
+	plt.xlabel('Wall Normal Position (m)', fontsize=14)
+	plt.legend(legend1, loc=0)
 	plt.show()
 
 
 	#urms vs y
 	plt.figure()
-	plt.plot(urms, y, '-xr')
-	plt.xlabel('$U_{rms}$ (m/sec)', fontsize=20)
-	plt.ylabel('Wall Normal Position (m)', fontsize=14)
-	plt.legend([r'$Re_{\theta}=$30288, PIV Data'], loc=0)
+	for j in range(0, num_tests):
+		plt.plot(y[j], urms[j], marker_u[j])
+	plt.ylabel('$U_{rms}$ (m/sec)', fontsize=20)
+	plt.xlabel('Wall Normal Position (m)', fontsize=14)
+	plt.legend(legend1, loc=0)
 	plt.show()
 
 	#vrms vs y
 	plt.figure()
-	plt.plot(vrms, y, '-xb')
-	plt.xlabel('$V_{rms}$ (m/sec)', fontsize=20)
-	plt.ylabel('Wall Normal Position (m)', fontsize=14)
-	plt.legend([r'$Re_{\theta}=$30288, PIV Data'], loc=0)
+	for j in range(0, num_tests):
+		plt.plot(y[j], vrms[j], marker_v[j])
+	plt.ylabel('$V_{rms}$ (m/sec)', fontsize=20)
+	plt.xlabel('Wall Normal Position (m)', fontsize=14)
+	plt.legend(legend1, loc=0)
 	plt.show()
 
 	#uprime vs y
 	plt.figure()
-	plt.plot(uvprime, y, '-xr')
-	plt.xlabel('$u^,v^,$', fontsize=20)
-	plt.ylabel('Wall Normal Position (m)', fontsize=14)
-	plt.legend([r'$Re_{\theta}=$30288, PIV Data'], loc=0)
+	for j in range(0, num_tests):
+		plt.plot(y[j], uvprime[j], marker_u[j])
+	plt.ylabel('$u^,v^,$', fontsize=20)
+	plt.xlabel('Wall Normal Position (m)', fontsize=14)
+	plt.legend(legend1, loc=0)
 	plt.show()
 
 	### Mean Vecotr plot
 	skip_num = 5
-
-	umean_fov2 = umean_fov[:, 0:-1:skip_num]
-	vmean_fov2 = vmean_fov[:, 0:-1:skip_num]
-	x2 = x[0:-1:skip_num]
-	y2 = y
+	umean_fov2 = umean_fov[0]
+	vmean_fov2 = vmean_fov[0]
+	x2 = x[0]
+	umean_fov2 = umean_fov2[:, 0:-1:skip_num]
+	vmean_fov2 = vmean_fov2[:, 0:-1:skip_num]
+	x2 = x2[0:-1:skip_num]
+	y2 = y[0]
 
 	Y = np.tile(y2, (len(x2), 1))
 	Y = np.transpose(Y)
