@@ -212,7 +212,7 @@ def filt_images(u_vel, v_vel, Uinfinity, sizey):
 	Umean_top = np.zeros(len(u_vel))
 	#compute means for top of images after above zero filter has been applied
 	for j in range(0, len(u_vel)):
-		Umean_top[j] = np.mean(np.mean(u_vel[j, int(2*(sizey/3)):-1]))
+		Umean_top[j] = np.mean(np.mean(u_vel[j, 0:int(1*(sizey/3))]))
 	####remove all images which have ~zero mean such that when STD filter is appled
 	# the average is not skewed to towards zero
 	for j in range(0, len(u_vel)):
@@ -222,16 +222,16 @@ def filt_images(u_vel, v_vel, Uinfinity, sizey):
 			count1+=1
 	#compute new means for top of images after above zero filter has been applied
 	for j in range(0, len(u_vel)):
-		Umean_top[j] = np.mean(np.mean(u_vel[j, int(2*(sizey/3)):-1]))
+		Umean_top[j] = np.mean(np.mean(u_vel[j, 0:int(1*(sizey/3))]))
 	####Apply STD filter 
 	#number of times to iterate through STD filter   
 	num_loops = 4
 	#width of filter in STD
-	filter_width = 1
+	filter_width = 2
 	for k in range(0, num_loops):
 		#compute mean of top 1/3 of image for STD filtering
 		for j in range(0, len(u_vel)):
-			Umean_top[j] = np.mean(np.mean(u_vel[j, int(2*(sizey/3)):-1]))
+			Umean_top[j] = np.mean(np.mean(u_vel[j, 0:int(1*(sizey/3))]))
 		#STD filter  
 		for j in range(0, len(u_vel)):
 			#remove images with average value less than avg - x*STD
@@ -244,4 +244,4 @@ def filt_images(u_vel, v_vel, Uinfinity, sizey):
 				u_vel[j] = np.nan
 				v_vel[j] = np.nan
 				count1+=1
-	return(u_vel, v_vel, count1)
+	return(u_vel, v_vel, count1, Umean_top)
