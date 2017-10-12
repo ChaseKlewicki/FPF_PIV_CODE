@@ -5,6 +5,7 @@ import PIV
 import h5py
 import matplotlib.pyplot as plt
 import hotwire as hw
+import os
 
 ### PIV INNER PLOTS AND ANALYSIS ########
 #########################################
@@ -47,18 +48,18 @@ def piv_inner(date, num_tests, utau, legend1):
 		#conf[j] = pd.read_hdf(name, 'confidence')[:-3]
 	#air_prop = hw.air_prop(23)
 	####Vincenti data###
-	name = '../outside_data/FPF_Vincenti_Data.h5'
+	name = os.getcwd()+'/outside_data/FPF_Vincenti_Data.h5'
 	unorm = np.array(pd.read_hdf(name, 'unorm'))
 	ynorm = np.array(pd.read_hdf(name, 'ynorm'))
 	Re_tau = ['1450', '2180', '2280', '3270', '5680', '6430', '10770', '15480', '15740']
-	urms_vincenti = pd.read_csv('../outside_data/urmsplus_fpf_primary.csv', delimiter=',')
-	yplus_vincenti = pd.read_csv('../outside_data/yplus_fpf_primary.csv', delimiter=',')
+	urms_vincenti = pd.read_csv((os.getcwd()+'/outside_data/urmsplus_fpf_primary.csv'), delimiter=',')
+	yplus_vincenti = pd.read_csv((os.getcwd()+'/outside_data/yplus_fpf_primary.csv'), delimiter=',')
 	# ### WUMOIN DATA #######
 	wumoin = dict()
-	wumoin = pd.read_hdf('../outside_data/WuMoin2010.h5', 'zpg_re1840')
+	wumoin = pd.read_hdf(os.getcwd()+'/outside_data/WuMoin2010.h5', 'zpg_re1840')
 	# ## Reza Data ##
 	# # #Reza PIV Velocity data
-	name = '../outside_data/PIV_ZPG_071016.h5'
+	name = os.getcwd()+'/outside_data/PIV_ZPG_071016.h5'
 	urms_reza =np.array(pd.read_hdf(name, 'rms'))
 	ynorm_reza = np.array(pd.read_hdf(name, 'yplus'))
 

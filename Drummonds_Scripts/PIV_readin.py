@@ -54,7 +54,7 @@ def piv_readin(date, file_name, base_name, num_images, data_delimiter, sizex, si
 		umean[j] = np.nanmean(Umask[j], axis=0)
 		uinfinity = np.mean(umean[j, 0:20, :])
 		#Filter Images
-		[Ufilt[j], Vfilt[j], bad_im_count, umean_top] = piv.filt_images(Umask[j], Vmask[j], uinfinity, sizey)
+		[Ufilt[j], Vfilt[j], bad_im_count] = piv.filt_images(Umask[j], Vmask[j], uinfinity, sizey)
 		umean[j] = np.nanmean(Ufilt[j], axis=0)
 		vmean[j] = np.nanmean(Vfilt[j], axis=0)
 	## Determine RMS quantities ##
