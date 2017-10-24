@@ -126,6 +126,27 @@ def piv_readin_mod(base_name_input, file_name, data_delim, data_sets, sizex, siz
     print('Done Read in!')
     return(x_axis, y_axis, temp_u, temp_v)
 
+
+
+def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█'):
+        """
+        Call in a loop to create terminal progress bar
+        @params:
+            iteration   - Required  : current iteration (Int)
+            total       - Required  : total iterations (Int)
+            prefix      - Optional  : prefix string (Str)
+            suffix      - Optional  : suffix string (Str)
+            decimals    - Optional  : positive number of decimals in percent complete (Int)
+            length      - Optional  : character length of bar (Int)
+            fill        - Optional  : bar fill character (Str)
+        """
+        percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+        filledLength = int(length * iteration // total)
+        bar = fill * filledLength + '-' * (length - filledLength)
+        print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end = '\r')
+        # Print New Line on Complete
+        if iteration == total:
+            print()
 ###########################################################
 ############# Determine Mask Location #####################
 #Function
@@ -244,4 +265,43 @@ def filt_images(u_vel, v_vel, Uinfinity, sizey):
 				u_vel[j] = np.nan
 				v_vel[j] = np.nan
 				count1+=1
+<<<<<<< HEAD
 	return(u_vel, v_vel, count1, Umean_top)
+=======
+	return(u_vel, v_vel, count1)
+
+
+###########################################################
+############# Spatial Correlation #####################
+#Function
+#This function quanntifies spatial correlation in a PIV Image to determine avg Uniform Momentum Zones 
+
+#INPUTS, 
+#u = mean velocity field
+#picel_disp = Number of pixels over which correlation will occur
+#OUTPUTS,
+# C correlation values
+
+def correlationY(u,pixel_disp):
+    x_len = u.shape[3] #determine x grid from image
+    y_len = u.shape[2] #determine y grid from image
+    num_images = u.shape[1] #determine the number of images from the PIV dataset
+    numsum =0 #initalize summing variables
+    densum=0
+    c = np.zeros((num_images, x_len)) #intialize correlation variable
+    printProgressBar(0, num_images, prefix = 'Reading In:', suffix = 'Complete', length = 50)
+    for i in range(0,num_images):
+        for j in range(0,x_len):
+            for k in range(0,y_len-1):
+                numsum = numsum + u[0,i,k,j]*u[0,i,k+pixel_disp,j]#sum numerator
+                densum = densum + u[0,i,k,j]*u[0,i,k,j]#sum denomenator
+            c[i,j] = numsum/densum #calculate correlation for each column of y values
+            numsum = 0 #reset summing variables
+            densum=0
+        printProgressBar(i,num_images, prefix = 'Reading In:', suffix = 'Complete', length = 50)
+    return c
+
+
+                
+                
+>>>>>>> 9010f7bd10b9f6c1cf8f10dc08814cfb3baf00c4

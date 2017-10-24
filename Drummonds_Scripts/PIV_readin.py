@@ -15,8 +15,6 @@ def piv_readin(date, file_name, base_name, num_images, data_delimiter, sizex, si
 	num_tests = len(base_name)
 	u = np.ndarray([num_tests, num_images, sizey, sizex])
 	v = np.ndarray([num_tests, num_images, sizey, sizex])
-	v_filt = np.ndarray([num_tests, num_images, sizey, sizex])
-	u_filt = np.ndarray([num_tests, num_images, sizey, sizex])
 	umean = np.ndarray([num_tests, sizey, sizex])
 	#vmean1 = np.ndarray([num_tests, sizey, sizex])
 	#mask = np.zeros([num_tests, 3])
@@ -30,36 +28,35 @@ def piv_readin(date, file_name, base_name, num_images, data_delimiter, sizex, si
 	#for j in range(1, num_images+1):
 	#    file_name[j] = '/B' + str('{0:05}'.format(i)) + '.txt'
 	for j in base_name:
-	    #Read in
-	    [x, y, u[j], v[j]] = piv.piv_readin_mod(base_name[j], file_name, data_delimiter, num_images+1, sizey, sizex)
-	    #calc u infinity 
-	    u_infinity = np.mean(u[0, 0, -10:-1, int(sizex/2)])
-	    #Filter Images
-	    [u_filt[j], v_filt[j], bad_im_count] = piv.filt_images(u[j], v[j], u_infinity, sizey)
-	    #Obtain mean vector field
-	    umean[j] = np.nanmean(u_filt[j, :], axis=0)
-	    #vmean1[j] = np.nanmean(v_filt[j, :], axis=0)
-
+		#Read in
+		[x, y, u[j], v[j]] = piv.piv_readin_mod(base_name[j], file_name, data_delimiter, num_images+1, sizey, sizex)
+		#Obtain mean vector field
+		umean[j] = np.nanmean(u[j, :], axis=0)
 	#determine mask position
 	tempmask = piv.mask_loc(umean[j])
 	mask = list(tempmask)
 	#use this to find the mean vel in each image, and look for bad images
-
-
 	## Resize vecotor field to crop out masked areas and
 	# create new vectors which take out the masked areas and any side errors
 	sizex_mask = mask[3] - mask[2] - side_error*2
 	sizey_mask = mask[1] - mask[0]
 	Umask = np.ndarray([num_tests, num_images, sizey_mask, sizex_mask])
 	Vmask = np.ndarray([num_tests, num_images, sizey_mask, sizex_mask])
+	Ufilt = np.ndarray([num_tests, num_images, sizey_mask, sizex_mask])
+	Vfilt = np.ndarray([num_tests, num_images, sizey_mask, sizex_mask])
 	umean = np.ndarray([num_tests, sizey_mask, sizex_mask])
 	vmean = np.ndarray([num_tests, sizey_mask, sizex_mask])
 	for j in base_name:
-	    Umask[j] = u_filt[j][:, mask[0]:mask[1], int(mask[2]+side_error):int(mask[3]-side_error)]
-	    Vmask[j] = v_filt[j][:, mask[0]:mask[1], int(mask[2]+side_error):int(mask[3]-side_error)]
-	    umean[j] = np.nanmean(Umask[j], axis=0)
-	    vmean[j] = np.nanmean(Vmask[j], axis=0)
-
+		Umask[j] = u[j][:, mask[0]:mask[1], int(mask[2]+side_error):int(mask[3]-side_error)]
+		Vmask[j] = v[j][:, mask[0]:mask[1], int(mask[2]+side_error):int(mask[3]-side_error)]
+		## FILTER IMAGES
+		#calc u infinity
+		umean[j] = np.nanmean(Umask[j], axis=0)
+		uinfinity = np.mean(umean[j, 0:20, :])
+		#Filter Images
+		[Ufilt[j], Vfilt[j], bad_im_count] = piv.filt_images(Umask[j], Vmask[j], uinfinity, sizey)
+		umean[j] = np.nanmean(Ufilt[j], axis=0)
+		vmean[j] = np.nanmean(Vfilt[j], axis=0)
 	## Determine RMS quantities ##
 	uprime = np.ndarray([num_tests, num_images, sizey_mask, sizex_mask])
 	vprime = np.ndarray([num_tests, num_images, sizey_mask, sizex_mask])
@@ -69,8 +66,8 @@ def piv_readin(date, file_name, base_name, num_images, data_delimiter, sizex, si
 	vrms = np.ndarray([num_tests, sizey_mask, sizex_mask])
 	for j in range(0, num_tests):
 		for jj in range(0, num_images):
-			uprime[j, jj] = ((Umask[j][jj]-umean[j]))
-			vprime[j, jj] = ((Vmask[j][jj]-vmean[j]))
+			uprime[j, jj] = ((Ufilt[j][jj]-umean[j]))
+			vprime[j, jj] = ((Vfilt[j][jj]-vmean[j]))
 			uvprime[j, jj] = uprime[j, jj]*vprime[j, jj]
 		uvprime_mean[j] = np.nanmean(uvprime[j], axis=0)
 		urms[j] = np.nanmean(uprime[j]**2, axis=0)**(1/2)
@@ -140,4 +137,4 @@ def piv_readin(date, file_name, base_name, num_images, data_delimiter, sizex, si
 	hdf.close()
 
 	print('Data Saved!')
-	return
+	return(Ufilt, Vfilt, xmask, ymask, bad_im_count)
